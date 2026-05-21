@@ -10,12 +10,18 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import requests
+import urllib3
 
 ABEND_PATTERNS = re.compile(
     r"\b(ABEND|S0C[0-9A-F]|S0CB|S806|S322|U4044|U4033|U4088)\b",
     flags=re.IGNORECASE,
 )
 KNOWN_OK_RETURN_CODES = {"0", "00", "0000", "0H", "00H", "000H"}
+RETURN_CODE_LOG_PATTERNS = [
+    re.compile(r"return code\W*([0-9A-Fa-f]+H?)", re.IGNORECASE),
+    re.compile(r"\brc\W*[:=]\W*([0-9A-Fa-f]+H?)\b", re.IGNORECASE),
+    re.compile(r"condition code\W*([0-9A-Fa-f]+H?)", re.IGNORECASE),
+]
 
 
 def load_json_file(path: Path) -> Dict[str, Any]:
@@ -49,7 +55,7 @@ def get_zowe_credentials() -> Dict[str, str]:
 
     if not user or not password:
         raise RuntimeError(
-            "As variáveis de ambiente ZOWE_USER e ZOWE_PASSWORD são obrigatórias."
+            "As variáveis de ambiente ZOWE_USER (ou ZOWE_USERNAME) e ZOWE_PASSWORD são obrigatórias."
         )
 
     return {"user": user, "password": password}
@@ -77,6 +83,8 @@ def create_authenticated_session(config: Dict[str, Any]) -> requests.Session:
     session = requests.Session()
     session.auth = (creds["user"], creds["password"])
     session.verify = verify
+    if not verify:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     session.headers.update({"Accept": "application/json"})
     return session
 
@@ -85,6 +93,49 @@ def parse_field(job: Dict[str, Any], field_names: List[str]) -> Optional[str]:
     for name in field_names:
         if name in job and job[name] is not None:
             return str(job[name])
+    return None
+
+
+def find_field_recursive(data: Any, field_names: List[str]) -> Optional[str]:
+    if isinstance(data, dict):
+        for name, value in data.items():
+            if name in field_names and value is not None:
+                return str(value)
+            nested = find_field_recursive(value, field_names)
+            if nested is not None:
+                return nested
+    elif isinstance(data, list):
+        for item in data:
+            nested = find_field_recursive(item, field_names)
+            if nested is not None:
+                return nested
+    return None
+
+
+def parse_return_code(job: Dict[str, Any]) -> Optional[str]:
+    names = [
+        "returnCode",
+        "return_code",
+        "returncode",
+        "rc",
+        "RC",
+        "return",
+        "jobReturnCode",
+        "job_rc",
+    ]
+    result = parse_field(job, names)
+    if result is not None:
+        return result
+    return find_field_recursive(job, names)
+
+
+def extract_return_code_from_text(text: str) -> Optional[str]:
+    if not text:
+        return None
+    for pattern in RETURN_CODE_LOG_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(1).upper()
     return None
 
 
@@ -140,26 +191,57 @@ def fetch_job_log(
 ) -> str:
     quoted_job_name = quote(job_name, safe="")
     quoted_job_id = quote(job_id, safe="")
-    url = f"{base_url}/restjobs/jobs/{quoted_job_name}/{quoted_job_id}/output"
-    params = {"type": "JOBLOG"}
-    response = session.get(url, params=params, timeout=60)
-    response.raise_for_status()
 
-    try:
-        payload = response.json()
-        if isinstance(payload, dict):
-            if "output" in payload:
-                output = payload["output"]
-                if isinstance(output, list):
-                    return "\n".join(str(line) for line in output)
-                return str(output)
-            if "jobLog" in payload:
-                return str(payload["jobLog"])
-            return json.dumps(payload)
-    except ValueError:
-        return response.text
+    candidates = [
+        (f"{base_url}/restjobs/jobs/{quoted_job_name}/{quoted_job_id}/output", {"type": "JOBLOG", "format": "TEXT"}, {"Accept": "text/plain"}),
+        (f"{base_url}/restjobs/jobs/{quoted_job_name}/{quoted_job_id}/output", {"type": "JOBLOG"}, {"Accept": "text/plain"}),
+        (f"{base_url}/restjobs/jobs/{quoted_job_name}/{quoted_job_id}", {"type": "JOBLOG"}, {"Accept": "text/plain"}),
+        (f"{base_url}/restjobs/jobs/{quoted_job_name}/{quoted_job_id}/joblog", {}, {"Accept": "text/plain"}),
+        (f"{base_url}/restjobs/jobs/{quoted_job_name}/{quoted_job_id}/log", {}, {"Accept": "text/plain"}),
+    ]
 
-    return response.text
+    last_response = None
+    last_url = None
+    for url, params, headers in candidates:
+        response = session.get(url, params=params, headers=headers, timeout=60)
+        if response.status_code == 200:
+            last_response = response
+            last_url = url
+            break
+        if response.status_code != 400:
+            response.raise_for_status()
+        last_response = response
+        last_url = url
+
+    if last_response is None:
+        raise RuntimeError("Não foi possível recuperar o JOBLOG do servidor.")
+
+    if last_response.status_code != 200:
+        extra = ""
+        try:
+            extra = last_response.text
+        except Exception:
+            extra = ""
+        raise RuntimeError(
+            f"Falha ao recuperar JOBLOG usando {last_url}: {last_response.status_code} {extra}"
+        )
+
+    if last_response.headers.get("Content-Type", "").startswith("application/json"):
+        try:
+            payload = last_response.json()
+            if isinstance(payload, dict):
+                if "output" in payload:
+                    output = payload["output"]
+                    if isinstance(output, list):
+                        return "\n".join(str(line) for line in output)
+                    return str(output)
+                if "jobLog" in payload:
+                    return str(payload["jobLog"])
+                return json.dumps(payload)
+        except ValueError:
+            pass
+
+    return last_response.text
 
 
 def contains_abend(job: Dict[str, Any], job_log: str) -> bool:
@@ -175,7 +257,7 @@ def build_alert_message(job: Dict[str, Any], job_log: str) -> str:
     job_name = parse_field(job, ["jobName", "jobname", "job_name"]) or "UNKNOWN"
     job_id = parse_field(job, ["jobId", "jobid", "job_id"]) or "UNKNOWN"
     owner = parse_field(job, ["owner", "user", "jobOwner"]) or "UNKNOWN"
-    return_code = parse_field(job, ["returnCode", "return_code"]) or "UNKNOWN"
+    return_code = parse_return_code(job) or "UNKNOWN"
     status = parse_field(job, ["status", "jobStatus"]) or "UNKNOWN"
 
     excerpt = job_log
@@ -192,6 +274,30 @@ def build_alert_message(job: Dict[str, Any], job_log: str) -> str:
         f"<b>STATUS</b>: {status}\n"
         f"<b>RETURN CODE</b>: {return_code}\n"
         f"<b>TRECHO DO JOBLOG</b>:\n<pre>{safe_excerpt}</pre>"
+    )
+
+
+def build_jobs_summary_message(job_infos: List[Dict[str, Any]]) -> str:
+    lines = []
+    for job in job_infos:
+        job_name = job.get("job_name", "UNKNOWN")
+        job_id = job.get("job_id", "UNKNOWN")
+        return_code = job.get("return_code", "UNKNOWN")
+        status = job.get("status", "UNKNOWN")
+        final_condition = job.get("final_condition", "UNKNOWN")
+        lines.append(
+            f"{job_name}/{job_id} RC={return_code} STATUS={status} FINAL={final_condition}"
+        )
+
+    excerpt = "\n".join(lines)
+    if len(excerpt) > 3800:
+        excerpt = excerpt[:3800].rsplit("\n", 1)[0] + "\n..."
+
+    safe_excerpt = excerpt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        f"<b>RELATÓRIO de JOBS</b>\n"
+        f"<b>Total de jobs</b>: {len(job_infos)}\n"
+        f"<pre>{safe_excerpt}</pre>"
     )
 
 
@@ -223,6 +329,7 @@ def scan_and_alert(
     state_path: Path,
     max_jobs: int,
     verbose: bool,
+    send_summary: bool,
 ) -> None:
     config = load_json_file(config_path)
     base_url = build_zosmf_base_url(config)
@@ -235,26 +342,51 @@ def scan_and_alert(
     logging.info("Encontradas %d jobs no z/OSMF.", len(jobs))
 
     new_alerts = 0
+    job_infos: List[Dict[str, Any]] = []
     for job in jobs:
         job_key = format_job_key(job)
+        job_name = parse_field(job, ["jobName", "jobname", "job_name"]) or "UNKNOWN"
+        job_id = parse_field(job, ["jobId", "jobid", "job_id"]) or "UNKNOWN"
+        return_code = parse_return_code(job) or "UNKNOWN"
+        final_condition = parse_field(job, ["finalCondition", "final_condition"]) or "UNKNOWN"
+        status = parse_field(job, ["status", "jobStatus"]) or "UNKNOWN"
+        job_log = None
+
+        should_fetch_log = False
+        if return_code == "UNKNOWN":
+            should_fetch_log = True
+        if job_key not in alerted_jobs:
+            should_fetch_log = True
+
+        if should_fetch_log:
+            try:
+                job_log = fetch_job_log(session, base_url, job_name, job_id)
+                if return_code == "UNKNOWN":
+                    extracted = extract_return_code_from_text(job_log)
+                    if extracted:
+                        return_code = extracted
+            except Exception as exc:
+                logging.warning(
+                    "Falha ao buscar joblog para %s: %s. Ignorando esta job por enquanto.",
+                    job_key,
+                    exc,
+                )
+
+        job_infos.append(
+            {
+                "job_name": job_name,
+                "job_id": job_id,
+                "return_code": return_code,
+                "status": status,
+                "final_condition": final_condition,
+            }
+        )
+
         if job_key in alerted_jobs:
             logging.debug("Job já alertado: %s", job_key)
             continue
 
-        job_name = parse_field(job, ["jobName", "jobname", "job_name"]) or "UNKNOWN"
-        job_id = parse_field(job, ["jobId", "jobid", "job_id"]) or "UNKNOWN"
-
-        try:
-            job_log = fetch_job_log(session, base_url, job_name, job_id)
-        except Exception as exc:
-            logging.warning(
-                "Falha ao buscar joblog para %s: %s. Ignorando esta job por enquanto.",
-                job_key,
-                exc,
-            )
-            continue
-
-        if contains_abend(job, job_log):
+        if job_log and contains_abend(job, job_log):
             message = build_alert_message(job, job_log)
             send_telegram_alert(
                 telegram_cfg["token"], telegram_cfg["chat_id"], message
@@ -263,7 +395,20 @@ def scan_and_alert(
             new_alerts += 1
             logging.info("Alerta enviado para job %s.", job_key)
         elif verbose:
-            logging.debug("Job sem ABEND detectado: %s", job_key)
+            logging.debug(
+                "Job sem ABEND detectado: %s status=%s finalCondition=%s returnCode=%s",
+                job_key,
+                status,
+                final_condition,
+                return_code,
+            )
+
+    if send_summary:
+        summary = build_jobs_summary_message(job_infos)
+        send_telegram_alert(
+            telegram_cfg["token"], telegram_cfg["chat_id"], summary
+        )
+        logging.info("Relatório de jobs enviado para Telegram.")
 
     state["alerted_jobs"] = list(alerted_jobs)
     save_state(state_path, state)
@@ -302,6 +447,11 @@ def main() -> int:
         action="store_true",
         help="Exibe logs mais verbosos para depuração.",
     )
+    parser.add_argument(
+        "--no-summary",
+        action="store_true",
+        help="Não enviar relatório de todos os jobs ao Telegram.",
+    )
 
     args = parser.parse_args()
     logging.basicConfig(
@@ -320,10 +470,22 @@ def main() -> int:
         if args.interval > 0:
             logging.info("Iniciando monitoramento com intervalo de %s segundos.", args.interval)
             while True:
-                scan_and_alert(config_path, state_path, args.max_jobs, args.verbose)
+                scan_and_alert(
+                    config_path,
+                    state_path,
+                    args.max_jobs,
+                    args.verbose,
+                    not args.no_summary,
+                )
                 time.sleep(args.interval)
         else:
-            scan_and_alert(config_path, state_path, args.max_jobs, args.verbose)
+            scan_and_alert(
+                config_path,
+                state_path,
+                args.max_jobs,
+                args.verbose,
+                not args.no_summary,
+            )
     except KeyboardInterrupt:
         logging.info("Monitoramento interrompido pelo usuário.")
         return 0
