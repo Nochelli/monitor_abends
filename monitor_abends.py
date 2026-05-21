@@ -18,9 +18,9 @@ ABEND_PATTERNS = re.compile(
 )
 KNOWN_OK_RETURN_CODES = {"0", "00", "0000", "0H", "00H", "000H"}
 RETURN_CODE_LOG_PATTERNS = [
-    re.compile(r"return code\W*([0-9A-Fa-f]+H?)", re.IGNORECASE),
-    re.compile(r"\brc\W*[:=]\W*([0-9A-Fa-f]+H?)\b", re.IGNORECASE),
-    re.compile(r"condition code\W*([0-9A-Fa-f]+H?)", re.IGNORECASE),
+    re.compile(r"\b(?:return(?: |_)?code|rc|cc|condition(?: |_)?code|return value)\b[^0-9A-Fa-f]*([0-9A-Fa-f]{1,4}H?)", re.IGNORECASE),
+    re.compile(r"\b(?:RC|rc|CC|cc)\W*[:=]?\W*([0-9A-Fa-f]{1,4}H?)\b"),
+    re.compile(r"\b([0-9A-Fa-f]{1,4}H?)\b"),
 ]
 
 
@@ -132,10 +132,21 @@ def parse_return_code(job: Dict[str, Any]) -> Optional[str]:
 def extract_return_code_from_text(text: str) -> Optional[str]:
     if not text:
         return None
+
+    lines = text.splitlines()
     for pattern in RETURN_CODE_LOG_PATTERNS:
-        match = pattern.search(text)
-        if match:
-            return match.group(1).upper()
+        for line in lines:
+            match = pattern.search(line)
+            if match:
+                return match.group(1).upper()
+
+    keyword_search = re.compile(r"\b(return|rc|cc|condition|abend|returned|return code|cond)\b", re.IGNORECASE)
+    for line in reversed(lines[-40:]):
+        if keyword_search.search(line):
+            fallback = re.search(r"\b([0-9A-Fa-f]{1,4}H?)\b", line)
+            if fallback:
+                return fallback.group(1).upper()
+
     return None
 
 
