@@ -37,7 +37,7 @@ python -m pip install -r requirements.txt
    - `Job: @REXX1`
    - `JOBID: JOB04361`
    - `RC=0127`
-   - `THURSDAY, 21 MAY`
+   - `THURSDAY, 21 MAY` _Apenas horário do Mainframe que se difere do meu fuso horário_ 
    - 
 ![JESJCL](ABEND_NO_JESJCL.png)   
 
