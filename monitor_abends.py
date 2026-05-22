@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
@@ -180,6 +181,32 @@ def format_job_key(job: Dict[str, Any]) -> str:
     return f"{name}:{jid}"
 
 
+def parse_job_timestamp(job: Dict[str, Any]) -> Optional[str]:
+    time_fields = [
+        "endTime",
+        "end_time",
+        "jobEndTime",
+        "job_end_time",
+        "endDate",
+        "end_date",
+        "submitTime",
+        "submit_time",
+        "startTime",
+        "start_time",
+        "createdAt",
+        "created_at",
+        "updatedAt",
+        "updated_at",
+        "timestamp",
+        "date",
+        "time",
+    ]
+    timestamp = parse_field(job, time_fields)
+    if timestamp:
+        return str(timestamp)
+    return None
+
+
 def fetch_jobs(session: requests.Session, base_url: str, max_jobs: int) -> List[Dict[str, Any]]:
     url = f"{base_url}/restjobs/jobs"
     params = {"status": "ENDED", "limit": max_jobs}
@@ -256,6 +283,12 @@ def fetch_job_log(
 
 
 def contains_abend(job: Dict[str, Any], job_log: str) -> bool:
+    return_code = parse_return_code(job)
+    if return_code is not None:
+        normalized = normalize_return_code(return_code)
+        if normalized is not None and normalized != 0:
+            return True
+
     if ABEND_PATTERNS.search(job_log):
         return True
     final_condition = parse_field(job, ["finalCondition", "final_condition"])
@@ -267,24 +300,16 @@ def contains_abend(job: Dict[str, Any], job_log: str) -> bool:
 def build_alert_message(job: Dict[str, Any], job_log: str) -> str:
     job_name = parse_field(job, ["jobName", "jobname", "job_name"]) or "UNKNOWN"
     job_id = parse_field(job, ["jobId", "jobid", "job_id"]) or "UNKNOWN"
-    owner = parse_field(job, ["owner", "user", "jobOwner"]) or "UNKNOWN"
     return_code = parse_return_code(job) or "UNKNOWN"
-    status = parse_field(job, ["status", "jobStatus"]) or "UNKNOWN"
-
-    excerpt = job_log
-    if len(excerpt) > 1000:
-        excerpt = excerpt[:1000].rsplit("\n", 1)[0] + "\n..."
-
-    safe_excerpt = excerpt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    timestamp = parse_job_timestamp(job) or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return (
         f"<b>ALERTA de ABEND</b>\n"
         f"<b>JOB</b>: {job_name}\n"
         f"<b>JOBID</b>: {job_id}\n"
-        f"<b>OWNER</b>: {owner}\n"
-        f"<b>STATUS</b>: {status}\n"
+        f"<b>DATA/HORA</b>: {timestamp}\n"
         f"<b>RETURN CODE</b>: {return_code}\n"
-        f"<b>TRECHO DO JOBLOG</b>:\n<pre>{safe_excerpt}</pre>"
+        f"\nFavor verificar."
     )
 
 
@@ -376,12 +401,14 @@ def scan_and_alert(
                     extracted = extract_return_code_from_text(job_log)
                     if extracted:
                         return_code = extracted
+                        job["returnCode"] = extracted
             except Exception as exc:
                 logging.warning(
-                    "Falha ao buscar joblog para %s: %s. Ignorando esta job por enquanto.",
+                    "Falha ao buscar joblog para %s: %s.",
                     job_key,
                     exc,
                 )
+                job_log = ""
 
         job_infos.append(
             {
@@ -397,22 +424,20 @@ def scan_and_alert(
             logging.debug("Job já alertado: %s", job_key)
             continue
 
-        if job_log and contains_abend(job, job_log):
-            message = build_alert_message(job, job_log)
+        if contains_abend(job, job_log or ""):
+            message = build_alert_message(job, job_log or "")
             send_telegram_alert(
                 telegram_cfg["token"], telegram_cfg["chat_id"], message
             )
             alerted_jobs.add(job_key)
             new_alerts += 1
             logging.info("Alerta enviado para job %s.", job_key)
-        elif verbose:
-            logging.debug(
-                "Job sem ABEND detectado: %s status=%s finalCondition=%s returnCode=%s",
-                job_key,
-                status,
-                final_condition,
-                return_code,
-            )
+        else:
+            if verbose:
+                if not job_log:
+                    logging.debug("Job %s: joblog não disponível.", job_key)
+                else:
+                    logging.debug("Job %s: sem ABEND detectado (RC=%s, Status=%s).", job_key, return_code, status)
 
     if send_summary:
         summary = build_jobs_summary_message(job_infos)
@@ -450,8 +475,8 @@ def main() -> int:
     parser.add_argument(
         "--interval",
         type=int,
-        default=0,
-        help="Intervalo em segundos para executar periodicamente. 0 executa uma vez.",
+        default=300,
+        help="Intervalo em segundos para executar periodicamente. 0 executa uma vez. Default 300s.",
     )
     parser.add_argument(
         "--verbose",
@@ -459,9 +484,9 @@ def main() -> int:
         help="Exibe logs mais verbosos para depuração.",
     )
     parser.add_argument(
-        "--no-summary",
+        "--summary",
         action="store_true",
-        help="Não enviar relatório de todos os jobs ao Telegram.",
+        help="Enviar relatório de todos os jobs ao Telegram.",
     )
 
     args = parser.parse_args()
@@ -486,7 +511,7 @@ def main() -> int:
                     state_path,
                     args.max_jobs,
                     args.verbose,
-                    not args.no_summary,
+                    args.summary,
                 )
                 time.sleep(args.interval)
         else:
@@ -495,7 +520,7 @@ def main() -> int:
                 state_path,
                 args.max_jobs,
                 args.verbose,
-                not args.no_summary,
+                args.summary,
             )
     except KeyboardInterrupt:
         logging.info("Monitoramento interrompido pelo usuário.")

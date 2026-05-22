@@ -34,16 +34,16 @@ setx TELEGRAM_CHAT_ID "seu_chat_id"
 
 ## Uso
 
-Executar uma vez:
+Executar automaticamente a cada 5 minutos (padrão):
 
 ```bash
 python monitor_abends.py --config zowe_config.json --state .last_seen_jobs.json
 ```
 
-Executar em loop a cada 5 minutos:
+Executar uma única vez:
 
 ```bash
-python monitor_abends.py --interval 300 --config zowe_config.json --state .last_seen_jobs.json
+python monitor_abends.py --interval 0 --config zowe_config.json --state .last_seen_jobs.json
 ```
 
 ## Como funciona
