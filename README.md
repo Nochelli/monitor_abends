@@ -1,27 +1,31 @@
-# monitor_abends
+## monitor_abends
 Programa escrito em Python para monitorar Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
 
 # Requisitos
-1) Assim que instalar o ZOWE no VSCODE é necessário configurar o arquivo `zowe_config.json`, é aqui que inserimos o host e porta do z/OSMF. Segue imagem abaixo dos campos que precisam ser configurado:
-![Minha imagem de exempl](JSON_FILE.png)
+1) Assim que instalar o ZOWE no VSCODE ele carrega o arquivo `zowe_config.json`, é aqui que inserimos o host e porta do z/OSMF. Configure os campos que estão indicados na imagem abaixo:
+   
+![JSON](JSON_FILE.png)
+_(Esse arquivo `zowe_config.json` está no repositório caso desejar usa-lo)_
 
 2) Variáveis de ambiente:
   - `ZOWE_USER`
   - `ZOWE_PASSWORD`
   - `TELEGRAM_BOT_TOKEN`
   - `TELEGRAM_CHAT_ID`
-  - 
-No Powershell eu configurei as variáveis juntamente com o comando .py para rodar o programa. Segue abaixo.
+    
+Utilizei o Powershell para configurar as variáveis juntamente com o comando .py para rodar o programa logo em seguida. Segue abaixo.
 _(lembrando que é preciso criar um BOT no BotFather do Telegram para ter o TOKEN e CHAT ID)_
 
+```bash
 $env:ZOWE_USER = "seu_usuario"
 $env:ZOWE_PASSWORD = "sua_senha"
 $env:TELEGRAM_BOT_TOKEN = "seu_token_do_bot"
 $env:TELEGRAM_CHAT_ID = "seu_chat_id"
 
 python monitor_abends.py
+```
 
-# Instale dependências:
+3) Instale dependências:
 
 ```bash
 python -m pip install -r requirements.txt
