@@ -1,10 +1,11 @@
-## monitor_abends
+# monitor_abends
 Programa escrito em Python para monitorar Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
 
 # Requisitos
 1) Assim que instalar o ZOWE no VSCODE ele carrega o arquivo `zowe_config.json`, é aqui que inserimos o host e porta do z/OSMF. Configure os campos que estão indicados na imagem abaixo:
    
-![JSON](JSON_FILE.png)
+![JSON](JSON_FILE.png)   
+
 _(Esse arquivo `zowe_config.json` está no repositório caso desejar usa-lo)_
 
 2) Variáveis de ambiente:
@@ -32,8 +33,16 @@ python -m pip install -r requirements.txt
 ```
 
 ## Como funciona
+ - Na imagem abaixo simulei um Job Abend dentro do ZOWE.
+   - `Job: @REXX1`
+   - `JOBID: JOB04361`
+   - `RC=0127`
+   - `THURSDAY, 21 MAY`
+   - 
+![JESJCL](ABEND_NO_JESJCL.png)   
 
 - Conecta ao z/OSMF usando as configurações de `zowe_config.json`.
+- 
 - Busca jobs com status `ENDED`.
 - Lê o `JOBLOG` de cada job.
 - Detecta ABENDs por padrão de texto ou RC.
