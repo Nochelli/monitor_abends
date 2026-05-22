@@ -4,14 +4,14 @@
     "zosmf": {
       "type": "zosmf",
       "properties": {
-        "port": 10443
+        "port": "PORT DO ZOSMF"
       },
       "secure": []
     },
     "tso": {
       "type": "tso",
       "properties": {
-        "account": "FB3",
+        "account": "ACCOUNT DO TSO",
         "codePage": "1047",
         "logonProcedure": "IZUFPROC"
       },
@@ -47,7 +47,7 @@
     "base": {
       "type": "base",
       "properties": {
-        "host": "204.90.115.200",
+        "host": "SEU HOST IP ADDRESS",
         "rejectUnauthorized": false
       },
       "secure": [
