@@ -53,7 +53,7 @@ O alerta é enviado ao BOT no Telegram, assim como na imagem abaixo:
 <img src="https://github.com/Nochelli/monitor_abends/blob/main/ALERTA_TELEGRAM.png" width="400">
 
 
-_Poderiamos usar outras ferramentas para enviar o alerta, como envio por e-mail que também seria bem prático. Porém, o alerta via Telegram foi escolhido por ser mais simples e fácil de configurar. Ainda assim, nada impede de mudar ou adicionar outras ferramentas para o envio dos alertas._
+_Poderiamos usar outras ferramentas para enviar o alerta, como envio por e-mail que também seria bem prático. Porém, o alerta via Telegram foi escolhido por ser mais simples, fácil de configurar e pode ser lido direto pelo celular. Ainda assim, nada impede de mudar ou adicionar outras ferramentas para o envio dos alertas._
 
 
 ## Arquivos no repositório:
