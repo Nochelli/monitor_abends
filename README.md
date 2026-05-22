@@ -1,12 +1,15 @@
 # Monitor Abends
-Programa escrito em **Python** para monitorar **Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE** _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
+Programa escrito em **Python** para monitorar **Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE** _(extenção IBM Z Open Editor)_. 
+O monitor verifica os jobs automaticamente a cada 5 minutos e envia alertas para um BOT no Telegram caso algum ABEND seja identificado.
 
 ## Requisitos e Configurações:
-1) Assim que instalar o ZOWE no VSCODE ele carrega o arquivo `zowe_config.json`, é aqui que inserimos o host, account e a porta do z/OSMF. Configure os campos que estão indicados na imagem abaixo:
+
+1) Após instalar o ZOWE no VSCode, será carregado o arquivo `zowe_config.json`, é nele que configuramos o host, account e porta do z/OSMF. Configure os campos que estão indicados na imagem abaixo:
    
 ![JSON](JSON_FILE.png)   
 
-_(Esse arquivo `zowe_config.json` está no repositório caso desejar usa-lo)_
+_(O arquivo `zowe_config.json` já está disponível no repositório caso queira utilizá-lo como modelo. Basta substituir pelo arquivo original após realizar as configurações necessárias.)_
+
 
 2) Variáveis de ambiente:
   - `ZOWE_USER`
@@ -14,7 +17,7 @@ _(Esse arquivo `zowe_config.json` está no repositório caso desejar usa-lo)_
   - `TELEGRAM_BOT_TOKEN`
   - `TELEGRAM_CHAT_ID`
     
-Utilizei o Powershell para configurar as variáveis juntamente com o comando .py para rodar o programa logo em seguida. Segue abaixo.
+Eu utilizei o Powershell para configurar as variáveis juntamente com o comando .py para rodar o programa logo em seguida. Segue abaixo.
 _(lembrando que é preciso criar um BOT no BotFather do Telegram para ter o TOKEN e CHAT ID)_
 
 ```bash
@@ -43,7 +46,7 @@ python -m pip install -r requirements.txt
 
 Na imagem abaixo podemos notar o programa `monitor_abends` em funcionamento! _(com o intervalo de 5min em 5min)_
 
-Note que o programa se conecta ao z/OSMF usando as configurações que colocamos no arquivo `zowe_config.json`. Busca jobs com status `ENDED`, lê o `JOBLOG` de cada job e detecta ABENDs por padrão de texto ou RC.
+Note que o programa se conecta ao z/OSMF usando as configurações definidas no arquivo `zowe_config.json`, busca jobs com status `ENDED`, lê o `JOBLOG` de cada job e detecta ABENDs por padrão de texto ou RC.
 Em seguida, o programa já indentificou que o **JOB @REXX1 (JOBID JOB04361)** abendou e dessa forma envia o alerta:
 
 ![TERMINAL](ABEND_NO_TERMINAL.png) 
@@ -53,7 +56,7 @@ O alerta é enviado ao BOT no Telegram, assim como na imagem abaixo:
 <img src="https://github.com/Nochelli/monitor_abends/blob/main/ALERTA_TELEGRAM.png" width="400">
 
 
-_Poderiamos usar outras ferramentas para enviar o alerta, como envio por e-mail que também seria bem prático. Porém, o alerta via Telegram foi escolhido por ser mais simples, fácil de configurar e pode ser lido direto pelo celular. Ainda assim, nada impede de mudar ou adicionar outras ferramentas para o envio dos alertas._
+_O envio de alertas foi implementado utilizando o Telegram por ser simples de configurar e fácil de acompanhar pelo celular. Porém, nada impede de adicionar outros métodos de notificação, assim como o envio por e-mail que também seria bem prático._
 
 
 ## Arquivos no repositório:
