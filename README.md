@@ -38,7 +38,7 @@ python -m pip install -r requirements.txt
    - `JOBID: JOB04361`
    - `RC=0127`
    - `THURSDAY, 21 MAY` _Apenas horário do Mainframe que se difere do meu fuso horário_ 
-   - 
+     
 ![JESJCL](ABEND_NO_JESJCL.png)   
 
 - Conecta ao z/OSMF usando as configurações de `zowe_config.json`.
