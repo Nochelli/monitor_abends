@@ -53,7 +53,7 @@ O alerta é enviado ao BOT no Telegram, assim como na imagem abaixo:
 <img src="https://github.com/Nochelli/monitor_abends/blob/main/ALERTA_TELEGRAM.png" width="400">
 
 
-_Poderiamos usar outros métodos de alerta, como envio por e-mail que também seria bem prático. Porém, o alerta via Telegram foi escolhido por ser mais simples e fácil de configurar. Ainda assim, nada impede de mudar ou adicionar outras ferramentas para o envio dos alertas._
+_Poderiamos usar outras ferramentas para enviar o alerta, como envio por e-mail que também seria bem prático. Porém, o alerta via Telegram foi escolhido por ser mais simples e fácil de configurar. Ainda assim, nada impede de mudar ou adicionar outras ferramentas para o envio dos alertas._
 
 
 ## Arquivos
@@ -61,4 +61,8 @@ _Poderiamos usar outros métodos de alerta, como envio por e-mail que também se
 - `monitor_abends.py`: script principal.
 - `zowe_config.json`: configuração de acesso Zowe.
 - `requirements.txt`: dependências.
-- `.last_seen_jobs.json`: estado local gerado automaticamente.
+- `.last_seen_jobs.json`: guarda o último estado dos jobs monitorados, esse arquivo é gerado automaticamente após rodar o monitor_abends.
+- `ABEND_NO_JESJCL.png`: imagem para o README
+- `ABEND_NO_TERMINAL.png`: imagem para o README
+- `ALERTA_TELEGRAM.png`: imagem para o README
+- `JSON_FILE.png`: imagem para o README
