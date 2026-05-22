@@ -1,49 +1,30 @@
 # monitor_abends
+Programa escrito em Python para monitorar Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
 
-Monitor mainframe job ABENDs via z/OSMF e envie alertas para Telegram.
+# Requisitos
+1) Assim que instalar o ZOWE no VSCODE é necessário configurar o arquivo `zowe_config.json`, é aqui que inserimos o host e porta do z/OSMF. Segue imagem abaixo dos campos que precisam ser configurado:
+![Minha imagem de exempl](JSON_FILE.png)
 
-## Requisitos
-
-- Python 3.8+
-- `requests`
-- Zowe `zowe_config.json` configurado com host e porta do z/OSMF
-- Variáveis de ambiente:
+2) Variáveis de ambiente:
   - `ZOWE_USER`
   - `ZOWE_PASSWORD`
   - `TELEGRAM_BOT_TOKEN`
   - `TELEGRAM_CHAT_ID`
+  - 
+No Powershell eu configurei as variáveis juntamente com o comando .py para rodar o programa. Segue abaixo.
+_(lembrando que é preciso criar um BOT no BotFather do Telegram para ter o TOKEN e CHAT ID)_
 
-## Instalação
+$env:ZOWE_USER = "seu_usuario"
+$env:ZOWE_PASSWORD = "sua_senha"
+$env:TELEGRAM_BOT_TOKEN = "seu_token_do_bot"
+$env:TELEGRAM_CHAT_ID = "seu_chat_id"
 
-1. Instale dependências:
+python monitor_abends.py
+
+# Instale dependências:
 
 ```bash
 python -m pip install -r requirements.txt
-```
-
-2. Configure as credenciais do Zowe e do Telegram:
-
-```bash
-setx ZOWE_USER "seu_usuario"
-setx ZOWE_PASSWORD "sua_senha"
-setx TELEGRAM_BOT_TOKEN "seu_token_do_bot"
-setx TELEGRAM_CHAT_ID "seu_chat_id"
-```
-
-> No PowerShell, use `setx` para definir variáveis de ambiente permanentes. Para a sessão atual, use `set`.
-
-## Uso
-
-Executar automaticamente a cada 5 minutos (padrão):
-
-```bash
-python monitor_abends.py --config zowe_config.json --state .last_seen_jobs.json
-```
-
-Executar uma única vez:
-
-```bash
-python monitor_abends.py --interval 0 --config zowe_config.json --state .last_seen_jobs.json
 ```
 
 ## Como funciona
@@ -51,7 +32,7 @@ python monitor_abends.py --interval 0 --config zowe_config.json --state .last_se
 - Conecta ao z/OSMF usando as configurações de `zowe_config.json`.
 - Busca jobs com status `ENDED`.
 - Lê o `JOBLOG` de cada job.
-- Detecta ABENDs por padrão de texto ou condição final.
+- Detecta ABENDs por padrão de texto ou RC.
 - Envia alerta via Telegram para o `chat_id` configurado.
 
 ## Arquivos
