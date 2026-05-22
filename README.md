@@ -1,4 +1,4 @@
-# search_job_abend
+# monitor_abends
 
 Monitor mainframe job ABENDs via z/OSMF e envie alertas para Telegram.
 
