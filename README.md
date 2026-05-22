@@ -1,4 +1,4 @@
-# monitor_abends
+# Monitor Abends
 Programa escrito em **Python** para monitorar **Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE** _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
 
 ## Requisitos e Configurações:
