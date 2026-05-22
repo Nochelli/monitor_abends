@@ -1,8 +1,8 @@
 # monitor_abends
-Programa escrito em Python para monitorar Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
+Programa escrito em **Python** para monitorar **Mainframe job ABENDs via z/OSMF com a interface do ZOWE no VSCODE** _(extenção IBM Z Open Editor)_. Programa monitora de 5 em 5 minutos e envia alertas para o appl Telegram caso houver abends.
 
-# Requisitos
-1) Assim que instalar o ZOWE no VSCODE ele carrega o arquivo `zowe_config.json`, é aqui que inserimos o host e porta do z/OSMF. Configure os campos que estão indicados na imagem abaixo:
+# Requisitos e Configurações:
+1) Assim que instalar o ZOWE no VSCODE ele carrega o arquivo `zowe_config.json`, é aqui que inserimos o host, account e a porta do z/OSMF. Configure os campos que estão indicados na imagem abaixo:
    
 ![JSON](JSON_FILE.png)   
 
@@ -41,12 +41,19 @@ python -m pip install -r requirements.txt
      
 ![JESJCL](ABEND_NO_JESJCL.png)   
 
-- Conecta ao z/OSMF usando as configurações de `zowe_config.json`.
-- 
-- Busca jobs com status `ENDED`.
-- Lê o `JOBLOG` de cada job.
-- Detecta ABENDs por padrão de texto ou RC.
-- Envia alerta via Telegram para o `chat_id` configurado.
+Na imagem abaixo podemos notar o programa `monitor_abends` em funcionamento! _(com o intervalo de 5min em 5min)_
+
+Note que o programa se conecta ao z/OSMF usando as configurações que colocamos no arquivo `zowe_config.json`. Busca jobs com status `ENDED`, lê o `JOBLOG` de cada job e detecta ABENDs por padrão de texto ou RC.
+Em seguida, o programa já indentificou que o **JOB @REXX1 (JOBID JOB04361)** abendou e dessa forma envia o alerta:
+
+![TERMINAL](ABEND_NO_TERMINAL.png) 
+
+O alerta é enviado ao BOT no Telegram, assim como na imagem abaixo:
+
+![TELEGRAM](ALERTA_TELEGRAM.png) 
+
+_Poderiamos usar outros métodos de alerta, como envio por e-mail que também seria bem prático. Porém, o alerta via Telegram foi escolhido por ser mais simples e fácil de configurar. Ainda assim, nada impede de mudar ou adicionar outras ferramentas para o envio dos alertas._
+
 
 ## Arquivos
 
