@@ -55,6 +55,9 @@ Em seguida, o programa já indentificou que o **JOB @REXX1 (JOBID JOB04361)** ab
 
 O alerta é enviado ao BOT no Telegram, assim como na imagem abaixo:
 
+_durante o looping, esse mesmo abend não será alertado novamente pois o programa mantém um controle local utilizando: `.last_seen_jobs.json`_.
+_Assim, o mesmo JOB não gera múltiplos alertas repetidos._
+
 <img src="https://github.com/Nochelli/monitor_abends/blob/main/ALERTA_TELEGRAM.png" width="400">
 
 
