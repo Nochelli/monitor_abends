@@ -383,6 +383,10 @@ def scan_and_alert(
         job_key = format_job_key(job)
         job_name = parse_field(job, ["jobName", "jobname", "job_name"]) or "UNKNOWN"
         job_id = parse_field(job, ["jobId", "jobid", "job_id"]) or "UNKNOWN"
+        if job_id.upper().startswith("TSU"):
+             logging.debug("Ignorando TSU: %s", job_key)
+             continue
+
         return_code = parse_return_code(job) or "UNKNOWN"
         final_condition = parse_field(job, ["finalCondition", "final_condition"]) or "UNKNOWN"
         status = parse_field(job, ["status", "jobStatus"]) or "UNKNOWN"
